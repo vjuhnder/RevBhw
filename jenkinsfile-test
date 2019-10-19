@@ -48,7 +48,7 @@ try
     node('master')
     {
         path = sh (
-            script: 'python2.7 ../'+env.JOB_NAME+'@libs/scripts/path.py',
+            script: 'python2.7 ../'+env.JOB_NAME+'@libs/libs/scripts/path.py',
             returnStdout: true
         ).trim()
     }
