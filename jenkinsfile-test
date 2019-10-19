@@ -1,0 +1,85 @@
+#!groovy
+@Library('libs@default')
+import com.uhnder.helpers.*
+import com.uhnder.pipelines.*
+import com.uhnder.shared.*
+import com.uhnder.stages.*
+import com.uhnder.steps.*
+
+
+def SBUB_REVISION_ID
+properties([
+    parameters([
+        string( defaultValue: 'default',
+                description: 'Specify a changeset (hash) to checkout',
+                name: 'SBUB_CHANGESET'),
+        string( defaultValue: 'default',
+                description: 'Specify a changeset (hash) to checkout',
+                name: 'SRA_CHANGESET'),
+        string( defaultValue: 'default',
+                description: 'Specify a changeset (hash) to checkout',
+                name: 'SCC_CHANGESET'),
+        string( defaultValue: '101',
+                description: 'board number to use',
+                name: 'BOARD_NUM'),
+        string( defaultValue: 'ILO',
+                description: 'Any additional inputs for regression tests',
+                name: 'ADD_PARAMS'),
+        string( defaultValue: '94',
+                description: 'network ID',
+                name: 'NETWORK_ID'),
+        string( defaultValue: '254',
+                description: 'ufarm IP',
+                name: 'UFARM_IP'),
+                
+    ]),
+    
+    buildDiscarder(logRotator(artifactDaysToKeepStr: '14', artifactNumToKeepStr: '120', daysToKeepStr: '', numToKeepStr: ''))
+])
+
+try
+{    
+    def jenkins_name = "jenkins"
+    
+    def jenkins_repo = new RepoUpdateStep(this, "jenkins", "https://bitbucket.org/uhnder/", "default")
+    
+    def path
+    
+    node('master')
+    {
+        path = sh (
+            script: 'python2.7 ../'+env.JOB_NAME+'@script/scripts/path.py',
+            returnStdout: true
+        ).trim()
+    }
+    echo path
+
+
+    def p = new Pipeline(this)
+       
+    p << new Stage('RepoUpdateStep', this)
+        .addStep(jenkins_repo)
+    
+    p.execute()
+
+    jenkins_repo = null
+    
+}
+catch (e)
+{
+    echo 'The Job failed :('
+    throw e
+}
+finally
+{   
+    stage('Build Naming')
+    {
+        node('master')
+        {
+            currentBuild.displayName = "#${BUILD_NUMBER}: SBUB(TEST-PIPELINE)"
+        }
+    }
+    if(manager.logContains(".*WIP FAILURES FOUND.*")) {
+        manager.buildUnstable()
+    }
+}
